@@ -36,6 +36,12 @@ public class WrapperResponse<T> {
         this.data = data;
     }
     
+    private WrapperResponse(Integer code,  String message, T data) {
+        this.code = code;
+        this.message = message;
+        this.data = data;
+    }
+    
     /**
      * 业务成功返回业务代码和描述信息
      */
@@ -79,8 +85,12 @@ public class WrapperResponse<T> {
      */
     public static <T> WrapperResponse<T> fail(ResultStatus resultStatus, T data) {
         if (resultStatus == null) {
-            return new WrapperResponse<>(ResultStatus.INTERNAL_SERVER_ERROR, null);
+            return new WrapperResponse<>(ResultStatus.INTERNAL_SERVER_ERROR, data);
         }
         return new WrapperResponse<>(resultStatus, data);
+    }
+    
+    public static <T> WrapperResponse<T> fail(Integer code, String message, T data) {
+        return new WrapperResponse<>(code, message,data);
     }
 }

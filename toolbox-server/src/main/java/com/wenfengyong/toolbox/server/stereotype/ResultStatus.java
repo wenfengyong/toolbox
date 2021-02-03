@@ -12,9 +12,20 @@ import lombok.ToString;
 @ToString
 @Getter
 public enum ResultStatus {
-    SUCCESS(HttpStatus.OK, 200, "OK"),
-    BAD_REQUEST(HttpStatus.BAD_REQUEST, 400, "Bad Request"),
+    /**
+     * 0 成功
+     */
+    SUCCESS(HttpStatus.OK, 0, "OK"),
+    
+    /**
+     * 100~999 服务出错
+     */
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, 500, "Internal Server Error"),
+    
+    /**
+     * 1000 业务出错
+     */
+    BAD_REQUEST(HttpStatus.BAD_REQUEST, 1000, "业务异常"),
     ;
     
     /**

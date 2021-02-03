@@ -1,6 +1,7 @@
 package com.wenfengyong.toolbox.server.common.advice;
 
 import java.lang.annotation.Annotation;
+import java.util.Objects;
 
 import org.springframework.core.MethodParameter;
 import org.springframework.core.annotation.AnnotatedElementUtils;
@@ -13,10 +14,10 @@ import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
 import com.wenfengyong.toolbox.server.common.WrapperResponse;
+import com.wenfengyong.toolbox.server.exception.BusinessException;
 import com.wenfengyong.toolbox.server.stereotype.ResultStatus;
 
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +37,8 @@ public class ResponseResultBodyAdvice implements ResponseBodyAdvice<Object> {
      */
     @Override
     public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
-        return AnnotatedElementUtils.hasAnnotation(returnType.getContainingClass(), ANNOTATION_TYPE) || returnType.hasMethodAnnotation(ANNOTATION_TYPE);
+        return AnnotatedElementUtils.hasAnnotation(returnType.getContainingClass(), ANNOTATION_TYPE) ||
+                returnType.hasMethodAnnotation(ANNOTATION_TYPE);
     }
     
     /**
@@ -46,6 +48,11 @@ public class ResponseResultBodyAdvice implements ResponseBodyAdvice<Object> {
     public Object beforeBodyWrite(Object body, MethodParameter methodParameter, MediaType mediaType,
             Class<? extends HttpMessageConverter<?>> aClass, ServerHttpRequest serverHttpRequest,
             ServerHttpResponse serverHttpResponse) {
+        
+        if (Objects.isNull(body)) {
+            return WrapperResponse.success();
+        }
+        
         // 防止出现重复包裹的问题
         if (body instanceof WrapperResponse) {
             return body;
@@ -55,48 +62,35 @@ public class ResponseResultBodyAdvice implements ResponseBodyAdvice<Object> {
     
     /**
      * 提供对标准Spring MVC异常的处理
-     *
-     * @param ex      the target exception
-     * @param request the current request
      */
     @ExceptionHandler(Exception.class)
-    public final ResponseEntity<WrapperResponse<?>> exceptionHandler(Exception ex, WebRequest request) {
-        log.error("ExceptionHandler: {}", ex.getMessage());
+    public final ResponseEntity<WrapperResponse<?>> exceptionHandler(Exception ex) {
         HttpHeaders headers = new HttpHeaders();
-//        if (ex instanceof ResultException) {
-//            return this.handleResultException((ResultException) ex, headers, request);
-//        }
-        // TODO: 2019/10/05 galaxy 这里可以自定义其他的异常拦截
-        return this.handleException(ex, headers, request);
-    }
-    
-//    /** 对ResultException类返回返回结果的处理 */
-//    protected ResponseEntity<WrapperResponse<?>> handleResultException(ResultException ex, HttpHeaders headers, WebRequest request) {
-//        Result<?> body = Result.failure(ex.getResultStatus());
-//        HttpStatus status = ex.getResultStatus().getHttpStatus();
-//        return this.handleExceptionInternal(ex, body, headers, status, request);
-//    }
-    
-    /** 异常类的统一处理 */
-    protected ResponseEntity<WrapperResponse<?>> handleException(Exception ex, HttpHeaders headers, WebRequest request) {
-        WrapperResponse<?> body = WrapperResponse.fail(ResultStatus.BAD_REQUEST);
-        HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
-        return this.handleExceptionInternal(ex, body, headers, status, request);
+        if (ex instanceof BusinessException) {
+            return this.handleBusinessException((BusinessException) ex, headers);
+        }
+        return this.handleException(headers);
     }
     
     /**
-     * org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler#handleExceptionInternal(java.lang.Exception, java.lang.Object, org.springframework.http.HttpHeaders, org.springframework.http.HttpStatus, org.springframework.web.context.request.WebRequest)
-     * <p>
-     * A single place to customize the response body of all exception types.
-     * request attribute and creates a {@link ResponseEntity} from the given
-     * body, headers, and status.
+     * 对 {@link BusinessException} 类返回返回结果的处理
      */
+    protected ResponseEntity<WrapperResponse<?>> handleBusinessException(BusinessException ex, HttpHeaders headers) {
+        WrapperResponse<?> body = WrapperResponse.fail(ex.getCode(), ex.getMessage(), null);
+        return this.handleExceptionInternal(body, headers, HttpStatus.OK);
+    }
+    
+    /**
+     * 异常类的统一处理
+     */
+    protected ResponseEntity<WrapperResponse<?>> handleException(HttpHeaders headers) {
+        WrapperResponse<?> body = WrapperResponse.fail(ResultStatus.BAD_REQUEST);
+        HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
+        return this.handleExceptionInternal(body, headers, status);
+    }
+    
     protected ResponseEntity<WrapperResponse<?>> handleExceptionInternal(
-            Exception ex, WrapperResponse<?> body, HttpHeaders headers, HttpStatus status, WebRequest request) {
-        
-        if (HttpStatus.INTERNAL_SERVER_ERROR.equals(status)) {
-            request.setAttribute("exception", ex, WebRequest.SCOPE_REQUEST);
-        }
+            WrapperResponse<?> body, HttpHeaders headers, HttpStatus status) {
         return new ResponseEntity<>(body, headers, status);
     }
 }

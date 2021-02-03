@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.wenfengyong.toolbox.server.common.advice.ResponseResultBody;
+import com.wenfengyong.toolbox.server.exception.BusinessException;
+import com.wenfengyong.toolbox.server.stereotype.ResultStatus;
 
 import lombok.Data;
 
@@ -24,16 +26,21 @@ public class TestController {
 
     // todo 直接返回string 类型会报ClassCastException，需要处理
     @GetMapping("/hello")
-    public Object hello(String name) {
+    public @ResponseResultBody Object hello(String name) {
         if (StringUtils.isBlank(name)) {
             name = "stranger";
         }
         return String.format("Hello, %s!", name);
     }
     
+    @GetMapping("/hi")
+    public Object hi() {
+        return null;
+    }
+    
     @GetMapping("/helloError")
     public HashMap<String, Object> helloError() throws Exception {
-        throw new Exception("helloError");
+        throw new BusinessException(ResultStatus.BAD_REQUEST);
     }
     
     @GetMapping("/helloMyError")
